@@ -26,12 +26,18 @@ async function askAI(prompt, debug) {
     process.exit(1);
   }
 
+  const hist = fs.existsSync(HISTORY_PATH) ? JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8')) : [];
+
   const response = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KEY}` },
     body: JSON.stringify({
       model: CONFIG.model,
-      messages: [{ role: 'system', content: CONFIG.system_prompt }, { role: 'user', content: prompt }]
+      messages: [
+        { role: 'system', content: CONFIG.system_prompt },
+        ...hist,
+        { role: 'user', content: prompt }
+      ]
     })
   });
 
@@ -44,7 +50,6 @@ async function askAI(prompt, debug) {
   console.log(output);
 
   if (!debug) {
-    const hist = fs.existsSync(HISTORY_PATH) ? JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8')) : [];
     hist.push({ role: 'user', content: prompt }, { role: 'assistant', content });
     fs.writeFileSync(HISTORY_PATH, JSON.stringify(hist, null, 2));
   }
