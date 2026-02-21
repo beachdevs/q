@@ -1,12 +1,11 @@
 {
   "name": "q",
   "version": "0.1.0",
-  "main": "src/q.js",
+  "main": "src/q",
   "bin": {
-    "q": "src/q.js"
+    "q": "src/q"
   },
   "scripts": {
-    "build": "pkg src/q.js --targets node18-macos-arm64,node18-linux-x64,node18-linux-arm64 --out-path bin/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
