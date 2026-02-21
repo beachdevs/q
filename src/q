@@ -67,7 +67,7 @@ async function askAI(prompt, debug) {
     args.shift();
   }
 
-  if (!args.length) return console.error('Usage: q [debug] <prompt>');
+  if (!args.length) return console.error('Usage: q [debug|clear] <prompt>');
 
   if (!CONFIG.model_set) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
