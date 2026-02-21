@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const readline = require('readline');
+
+const Q_DIR = path.join(os.homedir(), '.q');
+const CONFIG_PATH = path.join(Q_DIR, 'config.json');
+const HISTORY_PATH = path.join(Q_DIR, 'history.json');
+
+// Initialize paths and load config
+if (!fs.existsSync(Q_DIR)) fs.mkdirSync(Q_DIR, { recursive: true });
+let CONFIG = { debug: false, system_prompt: "You are a helpful assistant.", model: 'gpt-oss-120b' };
+if (fs.existsSync(CONFIG_PATH)) {
+  try { CONFIG = { ...CONFIG, ...JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) }; } catch (e) {}
+}
+
+const saveConfig = () => fs.writeFileSync(CONFIG_PATH, JSON.stringify(CONFIG, null, 2));
+const ENDPOINT = process.env.OPENAI_COMPATIBLE_BASE_URL;
+const KEY = process.env.OPENAI_COMPATIBLE_API_KEY;
+
+async function askAI(prompt, debug) {
+  if (!ENDPOINT || !KEY) {
+    console.error('Error: OPENAI_COMPATIBLE_BASE_URL or OPENAI_COMPATIBLE_API_KEY not set.');
+    process.exit(1);
+  }
+
+  const response = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KEY}` },
+    body: JSON.stringify({
+      model: CONFIG.model,
+      messages: [{ role: 'system', content: CONFIG.system_prompt }, { role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await response.json();
+  if (data.error || data.detail) return console.error('Error:', data.error || data.detail);
+
+  const content = data.choices[0].message.content;
+  const output = debug ? JSON.stringify(data, null, 2) : content;
+  
+  console.log(output);
+
+  if (!debug) {
+    const hist = fs.existsSync(HISTORY_PATH) ? JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8')) : [];
+    hist.push({ role: 'user', content: prompt }, { role: 'assistant', content });
+    fs.writeFileSync(HISTORY_PATH, JSON.stringify(hist, null, 2));
+  }
+}
+
+(async () => {
+  const args = process.argv.slice(2);
+  let debug = CONFIG.debug;
+
+  if (args[0] === 'clear') {
+    if (fs.existsSync(HISTORY_PATH)) fs.unlinkSync(HISTORY_PATH);
+    return console.log('History cleared.');
+  }
+
+  if (args[0] === 'debug') {
+    debug = !debug;
+    console.log(`Debug ${debug ? 'on' : 'off'}`);
+    CONFIG.debug = debug;
+    saveConfig();
+    args.shift();
+  }
+
+  if (!args.length) return console.error('Usage: q [debug] <prompt>');
+
+  if (!CONFIG.model_set) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await new Promise(r => rl.question(`Enter model [${CONFIG.model}]: `, a => r(a.trim())));
+    rl.close();
+    if (answer) CONFIG.model = answer;
+    CONFIG.model_set = true;
+    saveConfig();
+  }
+
+  await askAI(args.join(' '), debug);
+})();
