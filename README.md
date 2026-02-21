@@ -4,14 +4,20 @@ A simple CLI for interacting with OpenAI-compatible chat completion endpoints.
 
 ## Installation
 
-Install the CLI globally using npm:
+### Standalone Binaries
+
+Download the binary for your platform from the [releases](https://github.com/beachdevs/q/releases) page and move it to your path:
+
+```bash
+mv q-macos-arm64 /usr/local/bin/q
+chmod +x /usr/local/bin/q
+```
+
+### From Source (Requires Node.js)
 
 ```bash
 npm install -g .
 ```
-
-This will make the `q` command available from anywhere on your system.
-
 ## Configuration
 
 The CLI requires two environment variables:
