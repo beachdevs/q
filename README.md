@@ -18,12 +18,14 @@ The CLI requires two environment variables:
 
 - `OPENAI_COMPATIBLE_BASE_URL`: The full URL to the chat completions endpoint (e.g., `https://api.openai.com/v1/chat/completions`).
 - `OPENAI_COMPATIBLE_API_KEY`: Your API key.
+- `OPENAI_COMPATIBLE_MODEL`: The model name to send in requests.
 
 Add these to your shell configuration (e.g., `~/.bashrc` or `~/.zshrc`):
 
 ```bash
 export OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1/chat/completions
 export OPENAI_COMPATIBLE_API_KEY=your_api_key_here
+export OPENAI_COMPATIBLE_MODEL=gpt-4o-mini
 ```
 
 ### Local Config

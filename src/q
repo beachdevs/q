@@ -20,6 +20,7 @@ const saveConfig = () => fs.writeFileSync(CONFIG_PATH, JSON.stringify(CONFIG, nu
 const BASE_URL = process.env.OPENAI_COMPATIBLE_BASE_URL;
 const ENDPOINT = BASE_URL ? new URL('/chat/completions', BASE_URL).toString() : undefined;
 const KEY = process.env.OPENAI_COMPATIBLE_API_KEY;
+const MODEL_ENV = process.env.OPENAI_COMPATIBLE_MODEL;
 
 async function askAI(prompt, debug) {
   if (!ENDPOINT || !KEY) {
@@ -33,7 +34,7 @@ async function askAI(prompt, debug) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KEY}` },
     body: JSON.stringify({
-      model: CONFIG.model,
+      model: MODEL_ENV || CONFIG.model,
       messages: [
         { role: 'system', content: CONFIG.system_prompt },
         ...hist,
@@ -75,7 +76,7 @@ async function askAI(prompt, debug) {
 
   if (!args.length) return console.error('Usage: q [debug|clear] <prompt>');
 
-  if (!CONFIG.model_set) {
+  if (!CONFIG.model_set && !MODEL_ENV) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const answer = await new Promise(r => rl.question(`Enter model [${CONFIG.model}]: `, a => r(a.trim())));
     rl.close();
