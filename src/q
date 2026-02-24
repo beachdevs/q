@@ -18,7 +18,11 @@ if (fs.existsSync(CONFIG_PATH)) {
 
 const saveConfig = () => fs.writeFileSync(CONFIG_PATH, JSON.stringify(CONFIG, null, 2));
 const BASE_URL = process.env.OPENAI_COMPATIBLE_BASE_URL;
-const ENDPOINT = BASE_URL ? new URL('/chat/completions', BASE_URL).toString() : undefined;
+const ENDPOINT = BASE_URL
+  ? (BASE_URL.includes('/chat/completions')
+      ? BASE_URL
+      : `${BASE_URL.replace(/\/+$/, '')}/chat/completions`)
+  : undefined;
 const KEY = process.env.OPENAI_COMPATIBLE_API_KEY;
 const MODEL_ENV = process.env.OPENAI_COMPATIBLE_MODEL;
 
