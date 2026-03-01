@@ -25,10 +25,12 @@ const ENDPOINT = BASE_URL
   : undefined;
 const KEY = process.env.OPENAI_COMPATIBLE_API_KEY;
 const MODEL_ENV = process.env.OPENAI_COMPATIBLE_MODEL;
+const printOut = (message) => process.stdout.write(`\n${message}\n\n`);
+const printErr = (message) => process.stderr.write(`\n${message}\n\n`);
 
 async function askAI(prompt, debug) {
   if (!ENDPOINT || !KEY) {
-    console.error('Error: OPENAI_COMPATIBLE_BASE_URL or OPENAI_COMPATIBLE_API_KEY not set.');
+    printErr('Error: OPENAI_COMPATIBLE_BASE_URL or OPENAI_COMPATIBLE_API_KEY not set.');
     process.exit(1);
   }
 
@@ -49,12 +51,12 @@ async function askAI(prompt, debug) {
   });
 
   const data = await response.json();
-  if (data.error || data.detail) return console.error('Error:', data.error || data.detail);
+  if (data.error || data.detail) return printErr(`Error: ${data.error || data.detail}`);
 
   const content = data.choices[0].message.content;
   const output = debug ? JSON.stringify(data, null, 2) : content;
   
-  console.log(output);
+  printOut(output);
 
   if (!debug) {
     hist.push({ role: 'user', content: prompt }, { role: 'assistant', content });
@@ -68,21 +70,20 @@ async function askAI(prompt, debug) {
 
   if (args[0] === 'clear') {
     if (fs.existsSync(HISTORY_PATH)) fs.unlinkSync(HISTORY_PATH);
-    return console.log('History cleared.');
+    return printOut('History cleared.');
   }
 
   if (args[0] === 'debug') {
     debug = !debug;
-    console.log(`Debug ${debug ? 'on' : 'off'}`);
+    printOut(`Debug ${debug ? 'on' : 'off'}`);
     CONFIG.debug = debug;
     saveConfig();
     args.shift();
   }
 
   if (!args.length) {
-    return console.error(
-`
- /\\_/\\
+    return printErr(
+` /\\_/\\
 (=^.^=)
 (")_(")
 
