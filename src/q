@@ -81,7 +81,13 @@ async function askAI(prompt, debug) {
 
   if (!args.length) {
     return console.error(
-`q - quick LLM prompt
+`
+ /\\_/\\
+(=^.^=)
+(")_(")
+
+======== Banner ========
+q - quick LLM prompt
 
 Usage:
   q [debug|clear] <prompt>
