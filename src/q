@@ -27,6 +27,61 @@ const KEY = process.env.OPENAI_COMPATIBLE_API_KEY;
 const MODEL_ENV = process.env.OPENAI_COMPATIBLE_MODEL;
 const printOut = (message) => process.stdout.write(`\n${message}\n\n`);
 const printErr = (message) => process.stderr.write(`\n${message}\n\n`);
+const ENV_DEBUG = !!process.env.DEBUG;
+
+function extractTextContent(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return null;
+
+  const textParts = content
+    .map(part => {
+      if (typeof part === 'string') return part;
+      if (!part || typeof part !== 'object') return null;
+      if (typeof part.text === 'string') return part.text;
+      if (part.type === 'text' && typeof part.text?.value === 'string') return part.text.value;
+      return null;
+    })
+    .filter(Boolean);
+
+  return textParts.length ? textParts.join('\n') : null;
+}
+
+function extractOutputText(data) {
+  if (typeof data?.output_text === 'string' && data.output_text) return data.output_text;
+
+  const choiceMessage = data?.choices?.[0]?.message;
+  const choiceContent = extractTextContent(choiceMessage?.content);
+  if (choiceContent) return choiceContent;
+
+  if (typeof data?.choices?.[0]?.text === 'string' && data.choices[0].text) {
+    return data.choices[0].text;
+  }
+
+  if (Array.isArray(data?.output)) {
+    const textParts = data.output
+      .flatMap(item => Array.isArray(item?.content) ? item.content : [])
+      .map(part => {
+        if (typeof part?.text === 'string') return part.text;
+        if (part?.type === 'output_text' && typeof part?.text === 'string') return part.text;
+        return null;
+      })
+      .filter(Boolean);
+
+    if (textParts.length) return textParts.join('\n');
+  }
+
+  return null;
+}
+
+function extractErrorMessage(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (typeof data.error === 'string') return data.error;
+  if (typeof data.error?.message === 'string') return data.error.message;
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail)) return data.detail.map(item => item?.msg || JSON.stringify(item)).join('; ');
+  if (typeof data.message === 'string') return data.message;
+  return null;
+}
 
 async function askAI(prompt, debug) {
   if (!ENDPOINT || !KEY) {
@@ -35,25 +90,71 @@ async function askAI(prompt, debug) {
   }
 
   const hist = fs.existsSync(HISTORY_PATH) ? JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8')) : [];
+  const requestBody = {
+    model: MODEL_ENV || CONFIG.model,
+    messages: [
+      { role: 'system', content: CONFIG.system_prompt },
+      { role: 'system', content: 'Be brief in your response.' },
+      ...hist,
+      { role: 'user', content: prompt }
+    ]
+  };
+
+  if (ENV_DEBUG) {
+    console.error('Request:', JSON.stringify({
+      url: ENDPOINT,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer [redacted]' },
+      body: {
+        model: requestBody.model,
+        messages: [
+          { role: 'system', content: CONFIG.system_prompt },
+          { role: 'user', content: prompt }
+        ]
+      }
+    }, null, 2));
+  }
 
   const response = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KEY}` },
-    body: JSON.stringify({
-      model: MODEL_ENV || CONFIG.model,
-      messages: [
-        { role: 'system', content: CONFIG.system_prompt },
-        { role: 'system', content: 'Be brief in your response.' },
-        ...hist,
-        { role: 'user', content: prompt }
-      ]
-    })
+    body: JSON.stringify(requestBody)
   });
 
-  const data = await response.json();
-  if (data.error || data.detail) return printErr(`Error: ${data.error || data.detail}`);
+  const rawBody = await response.text();
+  if (ENV_DEBUG) {
+    console.error('Response:', JSON.stringify({
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: rawBody
+    }, null, 2));
+  }
 
-  const content = data.choices[0].message.content;
+  let data;
+  try {
+    data = rawBody ? JSON.parse(rawBody) : {};
+  } catch (error) {
+    console.error(`Error: ${response.status} ${response.statusText}`);
+    if (rawBody) console.error(rawBody);
+    return;
+  }
+
+  const errorMessage = extractErrorMessage(data);
+  if (!response.ok || errorMessage) {
+    printErr(`Error: ${errorMessage || `${response.status} ${response.statusText}`}`);
+    if (debug) printErr(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const content = extractOutputText(data);
+  if (!content) {
+    printErr('Error: Unrecognized API response shape.');
+    if (debug) printErr(JSON.stringify(data, null, 2));
+    return;
+  }
+
   const output = debug ? JSON.stringify(data, null, 2) : content;
   
   printOut(output);
